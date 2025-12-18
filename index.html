@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mini Gioco Romantico</title>
+<style>
+  /* Reset e base */
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg, #fceabb 0%, #f8b500 100%);
+    overflow: hidden;
+  }
+
+  /* Container principale */
+  #game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* Cuore */
+  .heart {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: #e74c3c;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    user-select: none;
+    transition: transform 0.3s, opacity 0.3s;
+    z-index: 1;
+  }
+
+  /* Animazione fluttuante */
+  @keyframes float {
+    0% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(1deg); }
+    100% { transform: translateY(0) rotate(0deg); }
+  }
+
+  /* Cuore in movimento */
+  .heart.animate {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  /* Scoppio */
+  .scoppio {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 60px;
+    height: 60px;
+    margin-top: -30px;
+    margin-left: -30px;
+    opacity: 1;
+    transform: scale(1);
+    transition: transform 0.5s ease-out, opacity 0.5s ease-out;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* Animazione scoppio */
+  .scoppio.animate {
+    transform: scale(2);
+    opacity: 0;
+  }
+
+  /* Overlay finale */
+  #overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255,255,255,0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    z-index: 10;
+  }
+
+  #overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  #overlay h1 {
+    font-size: 2em;
+    color: #c0392b;
+    margin-bottom: 20px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+  }
+
+  /* Pulsante Ricomincia */
+  #restartBtn {
+    background-color: #c0392b;
+    color: #fff;
+    border: none;
+    padding: 12px 24px;
+    font-size: 1em;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: background-color 0.3s;
+  }
+  #restartBtn:hover, #restartBtn:focus {
+    background-color: #a93226;
+    outline: none;
+  }
+
+  /* Testo finale */
+  #overlay p {
+    font-size: 1.2em;
+    margin-bottom: 20px;
+  }
+</style>
+</head>
+<body>
+<div id="game-container" role="main" aria-label="Gioco di palloncini a forma di cuore"></div>
+
+<!-- Overlay finale -->
+<div id="overlay" role="dialog" aria-modal="true" aria-labelledby="finalMessage">
+  <h1 id="finalMessage">Auguri di buon compleanno amore mio</h1>
+  <button id="restartBtn" aria-label="Ricomincia il gioco">Ricomincia</button>
+</div>
+
+<!-- Audio di Buon Compleanno (base64) -->
+<audio id="birthdayAudio" src="data:audio/mp3;base64,SUQzAwAAAAAAf1RT... (inserire qui il base64 completo dell'audio) ..." preload="auto"></audio>
+
+<script>
+  // Inserisci qui il base64 completo dell'audio "Buon Compleanno"
+  // Per esempio, puoi usare un breve file mp3 codificato in base64.
+  // Per questa demo, inserisco un segnale silenzioso di esempio (non ascoltabile),
+  // ma in un caso reale dovresti mettere il base64 di un file mp3 di "Buon Compleanno".
+  // Per ora, lasciamo vuoto o un breve suono.
+  document.getElementById('birthdayAudio').src = "data:audio/mp3;base64,SUQzAwAAAAAAf1RT"; // Placeholder
+
+  const totalHearts = 29;
+  const container = document.getElementById('game-container');
+  const overlay = document.getElementById('overlay');
+  const restartBtn = document.getElementById('restartBtn');
+  const audio = document.getElementById('birthdayAudio');
+
+  let heartsRemaining = totalHearts;
+
+  // Funzione per generare posizione casuale
+  function getRandomPosition() {
+    const padding = 50; // margine per evitare fuori schermo
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const x = Math.random() * (width - 2 * padding) + padding;
+    const y = Math.random() * (height - 2 * padding) + padding;
+    return { x, y };
+  }
+
+  // Creazione dei cuori
+  function createHearts() {
+    for (let i = 0; i < totalHearts; i++) {
+      const heart = document.createElement('div');
+      heart.className = 'heart animate';
+      heart.setAttribute('role', 'button');
+      heart.setAttribute('aria-label', 'Cuore da scoppiare');
+      heart.setAttribute('tabindex', '0');
+      // Posizione casuale
+      const pos = getRandomPosition();
+      heart.style.left = `${pos.x}px`;
+      heart.style.top = `${pos.y}px`;
+      // Contenuto
+      heart.innerHTML = '♥';
+      // Aggiungi evento
+      heart.addEventListener('click', handleHeartClick);
+      heart.addEventListener('keydown', (e) => {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          handleHeartClick.call(heart, e);
+        }
+      });
+      container.appendChild(heart);
+    }
+  }
+
+  // Gestore clic su cuore
+  function handleHeartClick(e) {
+    const heart = e.currentTarget;
+    if (heart.dataset.scoppiato) return; // già scoppiato
+    // Segna come scoppiato
+    heart.dataset.scoppiato = 'true';
+    // Ferma animazione
+    heart.classList.remove('animate');
+    // Crea effetto scoppio
+    const explosion = document.createElement('div');
+    explosion.className = 'scoppio';
+    explosion.innerHTML = '💥';
+    // Posizione centrata sul cuore
+    const rect = heart.getBoundingClientRect();
+    explosion.style.left = `${rect.left + rect.width/2}px`;
+    explosion.style.top = `${rect.top + rect.height/2}px`;
+    document.body.appendChild(explosion);
+    // Trigger animazione scoppio
+    requestAnimationFrame(() => {
+      explosion.classList.add('animate');
+    });
+    // Rimuovi cuore dopo animazione
+    setTimeout(() => {
+      if (explosion.parentNode) {
+        explosion.parentNode.removeChild(explosion);
+      }
+      heart.style.opacity = '0';
+      heart.style.transform = 'scale(0)';
+    }, 500);
+    // Incrementa conteggio
+    heartsRemaining--;
+    if (heartsRemaining === 0) {
+      showFinalOverlay();
+    }
+  }
+
+  function showFinalOverlay() {
+    overlay.classList.add('active');
+    // Riproduci musica
+    audio.currentTime = 0;
+    audio.play();
+  }
+
+  function resetGame() {
+    // Rimuovi tutti i cuori
+    container.innerHTML = '';
+    // Reset count
+    heartsRemaining = totalHearts;
+    // Nascondi overlay
+    overlay.classList.remove('active');
+    // Ricrea cuori
+    createHearts();
+  }
+
+  // Event listener per reset
+  restartBtn.addEventListener('click', resetGame);
+
+  // Inizializza
+  window.addEventListener('load', () => {
+    createHearts();
+  });
+
+  // Optional: ridimensiona per ribilanciare posizioni
+  window.addEventListener('resize', () => {
+    // Potresti voler rivedere le posizioni, ma per semplicità lasciamo così
+  });
+</script>
+</body>
+</html>
